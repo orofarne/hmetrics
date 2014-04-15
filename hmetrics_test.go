@@ -128,5 +128,40 @@ func TestMetrics(t *testing.T) {
 	if v, ok := timerResAVG.(float64); !ok || v != 0 {
 		t.Errorf("Invalid test_timer_avgtime#s value: %#v, expected 0", timerResAVG)
 	}
+}
 
+func TestCollisionsPanic(t *testing.T) {
+	defer func() {
+		r := recover();
+		if r == nil {
+			t.Errorf("Should panic")
+		}
+	}()
+
+	ms1 := NewMetricSet("metrics_test_x", 100*time.Millisecond)
+	if ms1 == nil {
+		t.Fatalf("ms1 is nil")
+	}
+	ms2 := NewMetricSet("metrics_test_x", 100*time.Millisecond)
+	if ms2 == nil {
+		t.Fatalf("ms2 is nil")
+	}
+}
+
+func TestCollisionsSafe(t *testing.T) {
+	defer func() {
+		r := recover();
+		if r != nil {
+			t.Errorf("panic: %v", r)
+		}
+	}()
+
+	ms1 := NewMetricSetSafe("metrics_test_x", 100*time.Millisecond)
+	if ms1 == nil {
+		t.Fatalf("ms1 is nil")
+	}
+	ms2 := NewMetricSetSafe("metrics_test_x", 100*time.Millisecond)
+	if ms2 == nil {
+		t.Fatalf("ms2 is nil")
+	}
 }

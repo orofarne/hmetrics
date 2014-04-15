@@ -2,6 +2,7 @@ package hmetrics
 
 import (
 	"expvar"
+	"fmt"
 	"sync"
 	"time"
 )
@@ -56,6 +57,26 @@ func NewMetricSet(namespace string, tickTime time.Duration) *MetricSet {
 	go ms.collect()
 
 	return ms
+}
+
+// Creates new metric set, adds '.%d' suffix to namespace on collision
+func NewMetricSetSafe(namespace string, tickTime time.Duration) *MetricSet {
+	nsp := namespace
+	k := 0
+	var res *MetricSet
+	for res == nil {
+		func() {
+			defer func() {
+				if r := recover(); r != nil {
+					k++
+					nsp = fmt.Sprintf("%s.%d", namespace, k)
+				}
+			}()
+
+			res = NewMetricSet(nsp, tickTime)
+		}()
+	}
+	return res
 }
 
 func (ms *MetricSet) getVars() interface{} {
@@ -124,7 +145,7 @@ func (ms *MetricSet) doResults(Δ time.Duration) {
 	ms.mutex.Lock()
 	defer ms.mutex.Unlock()
 
-	ms.results = make(map[string]interface {})
+	ms.results = make(map[string]interface{})
 
 	for k, v := range ms.states {
 		switch v.Type {
