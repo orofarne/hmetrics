@@ -1,7 +1,6 @@
 package hmetrics
 
 import (
-	"encoding/json"
 	"expvar"
 	"sync"
 	"time"
@@ -62,17 +61,8 @@ func NewMetricSet(namespace string, tickTime time.Duration) *MetricSet {
 func (ms *MetricSet) getVars() interface{} {
 	ms.mutex.Lock()
 	defer ms.mutex.Unlock()
-	//FIXME achtung!
-	var res interface{}
-	buf, err := json.Marshal(ms.results)
-	if err != nil {
-		panic(err)
-	}
-	err = json.Unmarshal(buf, &res)
-	if err != nil {
-		panic(err)
-	}
-	return res
+
+	return ms.results
 }
 
 func (ms *MetricSet) collect() {
@@ -133,6 +123,8 @@ func (ms *MetricSet) collectMetric(m metric) {
 func (ms *MetricSet) doResults(Δ time.Duration) {
 	ms.mutex.Lock()
 	defer ms.mutex.Unlock()
+
+	ms.results = make(map[string]interface {})
 
 	for k, v := range ms.states {
 		switch v.Type {

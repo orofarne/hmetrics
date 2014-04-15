@@ -9,6 +9,21 @@ import (
 	"time"
 )
 
+func TestMapBehavior(t *testing.T) {
+	m := make(map[string]string)
+	m["foo"] = "bar"
+	m1 := m
+	m = make(map[string]string)
+	m["bazz"] = "hello"
+
+	if m1["foo"] != "bar" {
+		t.Errorf("%s != \"bar\"", m["foo"])
+	}
+	if m["bazz"] != "hello" {
+		t.Errorf("%s != \"hello\"", m["bazz"])
+	}
+}
+
 func TestMetrics(t *testing.T) {
 	const httpAddr = "127.0.0.1:16740"
 
