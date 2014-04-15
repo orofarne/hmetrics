@@ -172,10 +172,20 @@ type CounterMetric struct {
 	c    chan metric
 }
 
+// Creates new counter metric or panic if metic exists in namespace
 func (ms *MetricSet) NewCounter(name string) *CounterMetric {
 	m := new(CounterMetric)
 	m.name = name
 	m.c = ms.metricChan
+
+	if _, found := ms.states[name]; found {
+		panic(fmt.Sprintf("Metric '%s' already exists"))
+	}
+	ms.states[name] = &metricState{
+		Type:  METRIC_COUNTER,
+		Value: uint64(0),
+	}
+
 	return m
 }
 
@@ -192,10 +202,23 @@ type TimerMetric struct {
 	c    chan metric
 }
 
+// Creates new timer metric or panic if metic exists in namespace
 func (ms *MetricSet) NewTimer(name string) *TimerMetric {
 	m := new(TimerMetric)
 	m.name = name
 	m.c = ms.metricChan
+
+	if _, found := ms.states[name]; found {
+		panic(fmt.Sprintf("Metric '%s' already exists"))
+	}
+	ms.states[name] = &metricState{
+		Type: METRIC_TIMER,
+		Value: metricTimerState{
+			Counter: 0,
+			Sum:     0,
+		},
+	}
+
 	return m
 }
 
