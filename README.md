@@ -9,7 +9,7 @@ go get 'github.com/orofarne/hmetrics'
 
 API
 ---
-https://godoc.org/github.com/orofarne/hmetrics
+https://gowalker.org/github.com/orofarne/hmetrics
 
 Example
 -------
