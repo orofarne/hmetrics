@@ -12,6 +12,7 @@ type MetricType int
 const (
 	METRIC_COUNTER MetricType = iota
 	METRIC_TIMER
+	METRIC_AVG
 )
 
 type metric struct {
@@ -125,16 +126,22 @@ func (ms *MetricSet) collectMetric(m metric) {
 	case METRIC_TIMER:
 		τ := uint64(m.Value.(time.Duration).Nanoseconds())
 		if state.Value == nil {
-			state.Value = metricTimerState{
+			state.Value = &metricTimerState{
 				Counter: 1,
 				Sum:     τ,
 			}
 		} else {
-			pState := state.Value.(metricTimerState)
-			state.Value = metricTimerState{
+			pState := state.Value.(*metricTimerState)
+			state.Value = &metricTimerState{
 				Counter: (pState.Counter + 1),
 				Sum:     (pState.Sum + τ),
 			}
+		}
+	case METRIC_AVG:
+		avgState := state.Value.(*metricAvgState)
+		state.Value = &metricAvgState{
+			Counter: (avgState.Counter + 1.0),
+			Sum:     (avgState.Sum + m.Value.(float64)),
 		}
 	}
 
@@ -153,7 +160,7 @@ func (ms *MetricSet) doResults(Δ time.Duration) {
 			ms.results[k+"#rps"] = float64(v.Value.(uint64)) / Δ.Seconds()
 			v.Value = uint64(0)
 		case METRIC_TIMER:
-			tState := v.Value.(metricTimerState)
+			tState := v.Value.(*metricTimerState)
 			var τ float64
 			if tState.Counter != 0 {
 				τ = (float64(tState.Sum) / float64(tState.Counter)) / float64(1000000000)
@@ -162,7 +169,13 @@ func (ms *MetricSet) doResults(Δ time.Duration) {
 			}
 			ms.results[k+"#rps"] = float64(tState.Counter) / Δ.Seconds()
 			ms.results[k+"_avgtime#s"] = τ
-			v.Value = metricTimerState{}
+			v.Value = &metricTimerState{}
+		case METRIC_AVG:
+			avgState := v.Value.(*metricAvgState)
+			if avgState.Counter > 0 {
+				ms.results[k] = avgState.Sum / avgState.Counter
+			}
+			v.Value = &metricAvgState{}
 		}
 	}
 }
@@ -212,11 +225,8 @@ func (ms *MetricSet) NewTimer(name string) *TimerMetric {
 		panic(fmt.Sprintf("Metric '%s' already exists"))
 	}
 	ms.states[name] = &metricState{
-		Type: METRIC_TIMER,
-		Value: metricTimerState{
-			Counter: 0,
-			Sum:     0,
-		},
+		Type:  METRIC_TIMER,
+		Value: &metricTimerState{},
 	}
 
 	return m
@@ -248,5 +258,40 @@ func (τ *TimerMetricObservation) End() {
 		Type:  METRIC_TIMER,
 		Name:  τ.m.name,
 		Value: Δ,
+	}
+}
+
+type AvgMetric struct {
+	name string
+	c    chan metric
+}
+
+type metricAvgState struct {
+	Sum     float64
+	Counter float64
+}
+
+// Creates new avg metric or panic if metic exists in namespace
+func (ms *MetricSet) NewAvg(name string) *AvgMetric {
+	m := new(AvgMetric)
+	m.name = name
+	m.c = ms.metricChan
+
+	if _, found := ms.states[name]; found {
+		panic(fmt.Sprintf("Metric '%s' already exists"))
+	}
+	ms.states[name] = &metricState{
+		Type:  METRIC_AVG,
+		Value: &metricAvgState{},
+	}
+
+	return m
+}
+
+func (m *AvgMetric) Add(v float64) {
+	m.c <- metric{
+		Type:  METRIC_AVG,
+		Name:  m.name,
+		Value: v,
 	}
 }

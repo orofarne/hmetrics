@@ -42,6 +42,9 @@ func TestMetrics(t *testing.T) {
 	timer := ms.NewTimer("test_timer")
 	timer.Add(3 * time.Second)
 	timer.Add(1 * time.Second)
+	avg := ms.NewAvg("test_avg")
+	avg.Add(15.0)
+	avg.Add(5.0)
 
 	time.Sleep(150 * time.Millisecond)
 
@@ -83,6 +86,15 @@ func TestMetrics(t *testing.T) {
 	}
 	if v, ok := timerResAVG.(float64); !ok || v < 1.5 || v > 2.5 {
 		t.Errorf("Invalid test_timer_avgtime#s value: %#v, expected ~2", timerResAVG)
+	}
+
+	//avg
+	avgRes, found := testData["test_avg"]
+	if !found {
+		t.Fatalf("test_avg not found")
+	}
+	if v, ok := avgRes.(float64); !ok || v < 9.9 || v > 10.1 {
+		t.Errorf("Invalid test_avg value: %#v, expected ~10", avgRes)
 	}
 
 	time.Sleep(100 * time.Millisecond)
@@ -128,11 +140,17 @@ func TestMetrics(t *testing.T) {
 	if v, ok := timerResAVG.(float64); !ok || v != 0 {
 		t.Errorf("Invalid test_timer_avgtime#s value: %#v, expected 0", timerResAVG)
 	}
+
+	//avg
+	counterRes, found = testData["test_avg"]
+	if found {
+		t.Fatalf("test_avg found")
+	}
 }
 
 func TestCollisionsPanic(t *testing.T) {
 	defer func() {
-		r := recover();
+		r := recover()
 		if r == nil {
 			t.Errorf("Should panic")
 		}
@@ -150,7 +168,7 @@ func TestCollisionsPanic(t *testing.T) {
 
 func TestCollisionsSafe(t *testing.T) {
 	defer func() {
-		r := recover();
+		r := recover()
 		if r != nil {
 			t.Errorf("panic: %v", r)
 		}
